@@ -11,7 +11,7 @@ wget -f https://raw.githubusercontent.com/Coast1n/OpenOS-GUI/main/installer.lua 
 lua /tmp/ocgui-installer.lua
 ```
 
-安装器下载并检查两个发布文件，然后安装：
+安装器将发布文件暂存到 `/home` 下（不会把 71 KB 的库写入默认仅 64 KiB 的 /tmp 临时盘），先检查可写性和剩余空间，再下载并校验。建议至少预留约 183 KiB 空间。随后安装：
 
 - `/lib/ocgui.lua`：完整单文件 GUI 库，应用使用 `require("ocgui")`。
 - `/bin/edit.lua`：图形文本编辑器，使用 `edit xxx` 打开或新建文件。
