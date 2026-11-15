@@ -8,8 +8,16 @@ assert(ref:match("^[%w_.-]+$"), "invalid revision")
 local payloads = {
   @@PAYLOADS@@
 }
-local stage, index = "/tmp/ocgui-install", 0
-while fs.exists(stage) do index = index + 1; stage = "/tmp/ocgui-install-" .. index end
+-- OpenComputers tmpfs defaults to 64 KiB; the GUI alone exceeds that.
+-- Keep downloaded payloads on the writable home filesystem instead.
+local home = assert(fs.get("/home"), "cannot locate home filesystem")
+assert(not home.isReadOnly(), "/home is read-only; use a writable OpenOS installation")
+local required = 8192
+for _, item in ipairs(payloads) do required = required + item.bytes * 2 end
+assert(home.spaceTotal() - home.spaceUsed() >= required,
+  "/home needs at least " .. required .. " free bytes for download and installation staging")
+local stage, index = "/home/.ocgui-install", 0
+while fs.exists(stage) do index = index + 1; stage = "/home/.ocgui-install-" .. index end
 assert(fs.makeDirectory(stage .. "/dist"), "cannot create download directory")
 local function cleanup()
   for _, item in ipairs(payloads) do fs.remove(stage .. "/dist/" .. item.name) end
