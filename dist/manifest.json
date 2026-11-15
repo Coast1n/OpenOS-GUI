@@ -1,0 +1,129 @@
+{
+  "version": "0.1.0-dev",
+  "luaVersion": "5.3",
+  "bundler": "luabundle@1.7.0",
+  "runtimeExternals": [
+    "term",
+    "unicode",
+    "component",
+    "event",
+    "computer"
+  ],
+  "verification": "Lua 5.3 syntax and module inventory checked; bundled OpenOS runtime verification pending.",
+  "lockSha256": "a0b2f84d9be501827e5f0d4ede43efcdbd225aa643d7b2e093413be506bf348f",
+  "sources": [
+    {
+      "file": "lib/ocgui.lua",
+      "sha256": "dc07428fff7c0d9d669f79c0b34aff6d76cf0a17ec9bbec7cb676f85bfc62f2d"
+    },
+    {
+      "file": "lib/ocgui/application.lua",
+      "sha256": "be137cc8b056b6e8dda0c6840eadb5264034c5f24dc0b3a66ba75ea4327b32b0"
+    },
+    {
+      "file": "lib/ocgui/button.lua",
+      "sha256": "45ef6dc7e69ea5b79d69bba632366e6604b408ed13681ad943d562c4a457d437"
+    },
+    {
+      "file": "lib/ocgui/container.lua",
+      "sha256": "09c3dbe91776e9398e524ccd27a2ebb1cd09575b2802d92225f4da2501621c1f"
+    },
+    {
+      "file": "lib/ocgui/dispatcher.lua",
+      "sha256": "eb1e38f41418e53bbe3f4659f4b42b1551be6fa5ca0c6e7756a0c4de43c9f35a"
+    },
+    {
+      "file": "lib/ocgui/geometry.lua",
+      "sha256": "a707e8581067dcc16dc938777b7625b8362946bb658bb5611e7546950201a5f0"
+    },
+    {
+      "file": "lib/ocgui/input.lua",
+      "sha256": "a7b8b100bf5f178252eef88578904324ff0f534573de22c126062d038861ee89"
+    },
+    {
+      "file": "lib/ocgui/interaction.lua",
+      "sha256": "d0e6ed1894f4cc4c251f6a86933cd8d651891fd5fd24e33b869ca894564cea6a"
+    },
+    {
+      "file": "lib/ocgui/label.lua",
+      "sha256": "f2a3c7459864a215c3f9f4fb4f480a4b3732bf14b4403b2c0714eac1da7644fa"
+    },
+    {
+      "file": "lib/ocgui/painter.lua",
+      "sha256": "b4149f6b581a58c77bcebf81a545c0656d1f1b6329eff8b4f12f1c9bfc0973b3"
+    },
+    {
+      "file": "lib/ocgui/platform/openos.lua",
+      "sha256": "d27ed6403379c1907d218f2fa122658bee8b4e9952779fbfd477441787cb08de"
+    },
+    {
+      "file": "lib/ocgui/renderer.lua",
+      "sha256": "7e2e646d709a0cdb478e006833ed1df965d21c5267095b7c56f4bbce0c86a128"
+    },
+    {
+      "file": "lib/ocgui/text.lua",
+      "sha256": "00e97c2c1f885a89b6f723149e075c4742b50e1a2cbfffc020945dc230ba4e8d"
+    },
+    {
+      "file": "lib/ocgui/theme.lua",
+      "sha256": "385d25c02fbd74e10a21960a8907e633a6456481a3d8190ac22bb6f5c778fddb"
+    },
+    {
+      "file": "lib/ocgui/widget.lua",
+      "sha256": "13595131775b90bc961fb3deb4af648f24fbd99a10bb41d538485e1a31e01fc2"
+    },
+    {
+      "file": "examples/basic.lua",
+      "sha256": "6e025536e59f5b21fe79926f03f11f8061f27e40d26d19158e0748fb9d2473ab"
+    }
+  ],
+  "outputs": [
+    {
+      "file": "ocgui.lua",
+      "entry": "lib/ocgui.lua",
+      "bytes": 71024,
+      "sha256": "1ee6144855407e807c14616256eae9766fe9e5cbd6f18b7573da56c83549902c",
+      "modules": [
+        "ocgui",
+        "ocgui.application",
+        "ocgui.button",
+        "ocgui.container",
+        "ocgui.dispatcher",
+        "ocgui.geometry",
+        "ocgui.input",
+        "ocgui.interaction",
+        "ocgui.label",
+        "ocgui.painter",
+        "ocgui.platform.openos",
+        "ocgui.renderer",
+        "ocgui.text",
+        "ocgui.theme",
+        "ocgui.widget"
+      ]
+    },
+    {
+      "file": "basic.lua",
+      "entry": "examples/basic.lua",
+      "bytes": 71905,
+      "sha256": "18f38f9b4bb2c7806ee6923852f4698305ea0ee1a0b8d06b6f9cabc98ab2ee80",
+      "modules": [
+        "__basic",
+        "ocgui",
+        "ocgui.application",
+        "ocgui.button",
+        "ocgui.container",
+        "ocgui.dispatcher",
+        "ocgui.geometry",
+        "ocgui.input",
+        "ocgui.interaction",
+        "ocgui.label",
+        "ocgui.painter",
+        "ocgui.platform.openos",
+        "ocgui.renderer",
+        "ocgui.text",
+        "ocgui.theme",
+        "ocgui.widget"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,256 @@
+-- Synthesized input and dispatch tests; does not read real input or access GPU.
+local root = (...) or "."
+assert(_VERSION == "Lua 5.3", "BLOCKED: Lua 5.3 required")
+local import = assert(loadfile(root .. "/tests/support/loader.lua"))()(root)
+local widget, container = import("ocgui.widget"), import("ocgui.container")
+local input, dispatcher = import("ocgui.input"), import("ocgui.dispatcher")
+local report = {suite = "STAGE4-EVENTS-001", lua = _VERSION, passed = 0, failed = 0, cases = {}}
+local function eq(a, b) assert(a == b, "expected " .. tostring(b) .. ", got " .. tostring(a)) end
+local function rejects(fn) local ok = pcall(fn); eq(ok, false) end
+local function test(name, fn)
+  local ok, err = pcall(fn)
+  report[ok and "passed" or "failed"] = report[ok and "passed" or "failed"] + 1
+  report.cases[#report.cases + 1] = {name = name, passed = ok, error = not ok and tostring(err) or nil}
+  print((ok and "PASS " or "FAIL ") .. name .. (ok and "" or ": " .. tostring(err)))
+end
+local function box(options) return container.new(options or {width = 20, height = 10}) end
+local function emit(node, kind) return node:_emit {type = kind} end
+local function pointer(x, y) return {type = "pointer_down", screenX = x or 1, screenY = y or 1, button = 0} end
+local function tree()
+  local a = box(); local b = a:add(box()); local c = b:add(widget.new())
+  return a, b, c, dispatcher.new(a)
+end
+
+test("I01 constructor validates source identities", function()
+  rejects(function() input.new("") end); rejects(function() input.new(false) end)
+  rejects(function() input.new("s", false) end); rejects(function() input.new("s", {1}) end)
+  assert(input.new("s"))
+end)
+test("I02 touch preserves source button player and raw tuple", function()
+  local e = input.new("s"):normalize("touch", "s", 2, 3, 0, "p")
+  eq(e.type, "pointer_down"); eq(e.source, "s"); eq(e.screenX, 2); eq(e.screenY, 3)
+  eq(e.button, 0); eq(e.player, "p"); eq(e.raw.n, 6); eq(e.raw[1], "touch")
+end)
+test("I03 fractional coordinates use ceiling", function()
+  local e = input.new("s"):normalize("touch", "s", 1.2, 3.8, 0)
+  eq(e.screenX, 2); eq(e.screenY, 4)
+end)
+test("I04 drag and drop map to distinct pointer events", function()
+  local i = input.new("s")
+  eq(i:normalize("drag", "s", 1, 1, 0).type, "pointer_drag")
+  eq(i:normalize("drop", "s", 1, 1, 0).type, "pointer_up")
+end)
+test("I05 scroll preserves signed delta without a button", function()
+  local e = input.new("s"):normalize("scroll", "s", 1, 1, -1)
+  eq(e.type, "scroll"); eq(e.delta, -1); eq(e.button, nil)
+end)
+test("I06 foreign screens are ignored", function()
+  local i = input.new("s")
+  eq(i:normalize("touch", "other", 1, 1, 0), nil)
+  eq(i:normalize("screen_resized", "other", 30, 20), nil)
+end)
+test("I07 keyboard addresses are copied and both key events preserve values", function()
+  local addresses = {"k"}; local i = input.new("s", addresses); addresses[1] = "other"
+  local down = i:normalize("key_down", "k", 65, 30, nil)
+  eq(down.type, "key_down"); eq(down.char, 65); eq(down.code, 30); eq(down.player, nil); eq(down.raw.n, 5)
+  eq(i:normalize("key_up", "k", 65, 30).type, "key_up")
+end)
+test("I08 foreign keyboards and paste sources are ignored", function()
+  local i = input.new("s", {"k"})
+  eq(i:normalize("key_down", "other", 65, 30), nil)
+  eq(i:normalize("clipboard", "other", "hello"), nil)
+end)
+test("I09 paste preserves Unicode newlines and optional player", function()
+  local e = input.new("s", {"k"}):normalize("clipboard", "k", "中文\nline", "p")
+  eq(e.type, "text_paste"); eq(e.text, "中文\nline"); eq(e.player, "p")
+end)
+test("I10 resize dimensions must be positive integers", function()
+  local i = input.new("s")
+  local e = i:normalize("screen_resized", "s", 30, 20); eq(e.width, 30); eq(e.height, 20)
+  eq(i:normalize("screen_resized", "s", 0, 20), nil)
+  eq(i:normalize("screen_resized", "s", 30, 1.5), nil)
+end)
+test("I11 timeout unknown signal and interruption do not consume a queue", function()
+  local i = input.new("s")
+  eq(i:normalize(), nil); eq(i:normalize("modem_message", "m", nil, 7), nil)
+  local e = i:normalize("interrupted", nil); eq(e.type, "interrupted"); eq(e.raw.n, 2)
+end)
+test("I12 malformed payloads and keyboard replacements are handled atomically", function()
+  local i = input.new("s", {"k"})
+  eq(i:normalize("touch", "s", math.huge, 1, 0), nil)
+  eq(i:normalize("touch", "s", 1, 1, -1), nil)
+  eq(i:normalize("key_down", "k", "x", 30), nil)
+  eq(i:normalize("clipboard", "k", false), nil)
+  rejects(function() i:setKeyboards({[2] = "other"}) end)
+  assert(i:normalize("key_down", "k", 65, 30))
+  i:setKeyboards({"new"}); eq(i:normalize("key_down", "k", 65, 30), nil)
+  assert(i:normalize("key_down", "new", 65, 30))
+end)
+
+test("H01 handlers run in order and only true consumes", function()
+  local node, seen = widget.new(), {}
+  node:on("click", function(self, e) eq(self, node); eq(e.type, "click"); seen[#seen + 1] = 1; return 1 end)
+  node:on("click", function() seen[#seen + 1] = 2; return true end)
+  node:on("click", function() seen[#seen + 1] = 3 end)
+  eq(emit(node, "click"), true); eq(table.concat(seen), "12")
+end)
+test("H02 unsubscribe is idempotent", function()
+  local node, calls = widget.new(), 0
+  local off = node:on("click", function() calls = calls + 1 end)
+  off(); off(); eq(emit(node, "click"), false); eq(calls, 0)
+end)
+test("H03 registration during emission waits until the next event", function()
+  local node, calls = widget.new(), 0
+  local off
+  off = node:on("click", function() off(); node:on("click", function() calls = calls + 1 end) end)
+  emit(node, "click"); eq(calls, 0); emit(node, "click"); eq(calls, 1)
+end)
+test("H04 unsubscribing a pending handler skips it", function()
+  local node, calls, off = widget.new(), 0
+  node:on("click", function() off() end)
+  off = node:on("click", function() calls = calls + 1 end)
+  emit(node, "click"); eq(calls, 0)
+end)
+test("H05 named handler lists remain isolated", function()
+  local node, seen = widget.new(), ""
+  node:on("focus", function() seen = seen .. "f" end)
+  node:on("click", function() seen = seen .. "c" end)
+  emit(node, "focus"); eq(seen, "f"); emit(node, "click"); eq(seen, "fc")
+end)
+test("H06 invalid registration and guarded unsubscribe leave state intact", function()
+  local node, calls = widget.new(), 0
+  rejects(function() node:on("unknown", function() end) end)
+  rejects(function() node:on("click", {}) end)
+  local off = node:on("click", function() calls = calls + 1 end)
+  node._mutationGuard = function() error("drawing") end
+  rejects(off); rejects(function() node:on("click", function() end) end)
+  node._mutationGuard = nil; emit(node, "click"); eq(calls, 1); off()
+end)
+test("H07 duplicate callbacks have independent subscriptions", function()
+  local node, calls = widget.new(), 0
+  local fn = function() calls = calls + 1 end
+  local off = node:on("click", fn); node:on("click", fn)
+  off(); emit(node, "click"); eq(calls, 1)
+end)
+test("H08 subscriptions do not draw or invalidate", function()
+  local node, calls = widget.new(), 0; node._dirty = false
+  local off = node:on("click", function() calls = calls + 1 end)
+  eq(node._dirty, false); eq(calls, 0); off(); eq(node._dirty, false)
+end)
+
+test("D01 bubbling preserves target and calculates per-node coordinates", function()
+  local a = box {x = 5, y = 6, width = 30, height = 20}
+  local b = a:add(box {x = 3, y = 2, width = 20, height = 10})
+  local c = b:add(widget.new {x = 2, y = 3, width = 4, height = 2})
+  local seen = {}
+  for index, node in ipairs({c, b, a}) do
+    local order = index
+    node:on("pointer_down", function(self, e)
+      eq(e.target, c); eq(e.currentTarget, self)
+      seen[#seen + 1] = order .. ":" .. e.x .. "," .. e.y
+    end)
+  end
+  eq(dispatcher.new(a):dispatchPointer(pointer(9, 9)), false)
+  eq(table.concat(seen, ";"), "1:2,1;2:3,3;3:5,4")
+end)
+test("D02 consumed child event does not reach ancestors", function()
+  local a, b, c, d = tree(); local calls = 0
+  c:on("click", function() return true end); b:on("click", function() calls = calls + 1 end)
+  eq(d:dispatch(c, {type = "click"}), true); eq(calls, 0)
+end)
+test("D03 ancestor registrations are snapshotted before target callbacks", function()
+  local a, _, c, d = tree(); local calls = 0; local off
+  off = c:on("click", function() off(); a:on("click", function() calls = calls + 1 end) end)
+  d:dispatch(c, {type = "click"}); eq(calls, 0)
+  d:dispatch(c, {type = "click"}); eq(calls, 1)
+end)
+test("D04 unsubscribed ancestor handler is skipped", function()
+  local a, _, c, d = tree(); local calls = 0
+  local off = a:on("click", function() calls = calls + 1 end)
+  c:on("click", off); d:dispatch(c, {type = "click"}); eq(calls, 0)
+end)
+test("D05 detached target stops pending local handlers but keeps original ancestors", function()
+  local _, b, c, d = tree(); local seen = ""
+  c:on("click", function() seen = seen .. "1"; b:remove(c) end)
+  c:on("click", function() seen = seen .. "2" end)
+  b:on("click", function() seen = seen .. "b" end)
+  d:dispatch(c, {type = "click"}); eq(seen, "1b")
+end)
+test("D06 detach and reattach within one event invalidates the old subtree path", function()
+  local a, b, c, d = tree(); local seen = ""
+  c:on("click", function() seen = seen .. "1"; a:remove(b); a:add(b) end)
+  c:on("click", function() seen = seen .. "2" end)
+  b:on("click", function() seen = seen .. "b" end); a:on("click", function() seen = seen .. "a" end)
+  d:dispatch(c, {type = "click"}); eq(seen, "1a")
+end)
+test("D07 disabling a target skips its pending handlers", function()
+  local _, b, c, d = tree(); local seen = ""
+  c:on("click", function() seen = seen .. "1"; c:setEnabled(false) end)
+  c:on("click", function() seen = seen .. "2" end); b:on("click", function() seen = seen .. "b" end)
+  d:dispatch(c, {type = "click"}); eq(seen, "1b")
+end)
+test("D08 disabled overlay blocks pointer routing without click-through", function()
+  local a, calls = box(), 0
+  local lower = a:add(widget.new()); local top = a:add(widget.new {enabled = false})
+  lower:on("pointer_down", function() calls = calls + 1; return true end)
+  local d = dispatcher.new(a); eq(d:dispatchPointer(pointer()), false); eq(calls, 0)
+  top:setVisible(false); eq(d:dispatchPointer(pointer()), true); eq(calls, 1)
+end)
+test("D09 pointer routing respects ancestor clipping", function()
+  local a, calls = box(), 0; local b = a:add(box {width = 2, height = 2})
+  local c = b:add(widget.new {x = 3}); c:on("pointer_down", function() calls = calls + 1 end)
+  dispatcher.new(a):dispatchPointer(pointer(3, 1)); eq(calls, 0)
+end)
+test("D10 recursive dispatch fails and releases the dispatch guard", function()
+  local a, _, c, d = tree()
+  local off = c:on("click", function() d:dispatch(c, {type = "click"}) end)
+  rejects(function() d:dispatch(c, {type = "click"}) end); off()
+  a:on("click", function() return true end); eq(d:dispatch(c, {type = "click"}), true)
+end)
+test("D11 callback error objects are preserved and subsequent dispatch recovers", function()
+  local _, _, c, d = tree(); local sentinel = {message = "expected"}
+  local off = c:on("click", function() error(sentinel, 0) end)
+  local ok, err = pcall(function() d:dispatch(c, {type = "click"}) end)
+  eq(ok, false); eq(err, sentinel); off(); eq(d:dispatch(c, {type = "click"}), false)
+end)
+test("D12 cancellation stops remaining callbacks and resets for the next event", function()
+  local a, _, c, d = tree(); local calls = 0
+  local off = c:on("click", function() d:cancel() end)
+  c:on("click", function() calls = calls + 1 end); a:on("click", function() calls = calls + 1 end)
+  d:dispatch(c, {type = "click"}); eq(calls, 0)
+  off(); d:dispatch(c, {type = "click"}); eq(calls, 2)
+end)
+test("D13 focus and blur notifications do not bubble", function()
+  local a, _, c, d = tree(); local seen = ""
+  for _, name in ipairs({"focus", "blur"}) do
+    c:on(name, function() seen = seen .. "c" end); a:on(name, function() seen = seen .. "a" end)
+    d:dispatch(c, {type = name})
+  end
+  eq(seen, "cc")
+end)
+test("D14 invalid roots and ineligible targets are handled", function()
+  local a, _, c, d = tree()
+  rejects(function() dispatcher.new(widget.new()) end)
+  rejects(function() dispatcher.new(c) end)
+  rejects(function() d:dispatch({}, {type = "click"}) end)
+  eq(d:dispatch(widget.new(), {type = "click"}), false)
+  a:setVisible(false); eq(d:dispatch(c, {type = "click"}), false)
+end)
+test("D15 normalized event data is not modified and raw nils survive", function()
+  local _, _, c, d = tree(); local e = input.new("s", {"k"}):normalize("key_down", "k", 65, 30, nil)
+  c:on("key_down", function(_, event) eq(event.raw.n, 5); eq(event.raw[5], nil); eq(event.target, c) end)
+  d:dispatch(c, e); eq(e.target, nil); eq(e.currentTarget, nil)
+end)
+test("D16 inserted widgets do not receive the active event", function()
+  local a, _, c, d = tree(); local calls = 0; local added
+  c:on("pointer_down", function()
+    added = a:add(widget.new()); added:on("pointer_down", function() calls = calls + 1 end)
+  end)
+  d:dispatchPointer(pointer()); eq(calls, 0)
+  d:dispatchPointer(pointer()); eq(calls, 1)
+end)
+
+report.total = report.passed + report.failed
+report.ok = report.failed == 0
+print(string.format("SUMMARY: %d passed, %d failed, %d total", report.passed, report.failed, report.total))
+return report

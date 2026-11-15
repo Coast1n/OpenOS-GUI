@@ -1,0 +1,13 @@
+{
+  "name": "openos-gui-build",
+  "private": true,
+  "scripts": {
+    "build": "node tools/build.cjs",
+    "build:editor": "node tools/build-editor.cjs",
+    "build:installer": "node tools/build-installer.cjs",
+    "prepare:publish": "node tools/prepare-publish.cjs"
+  },
+  "devDependencies": {
+    "luabundle": "1.7.0"
+  }
+}

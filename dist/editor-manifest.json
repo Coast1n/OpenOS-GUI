@@ -1,0 +1,19 @@
+{
+  "version": "0.1.0-dev",
+  "file": "edit.lua",
+  "sha256": "2d4b7a1fbafcd99496b9e03155d473de9653bd4125f9c50e06e316ce3d4fc2c9",
+  "modules": [
+    "__editor",
+    "ocedit.buffer",
+    "ocedit.storage"
+  ],
+  "external": [
+    "ocgui",
+    "unicode",
+    "shell",
+    "event",
+    "filesystem"
+  ],
+  "guiSha256": "1ee6144855407e807c14616256eae9766fe9e5cbd6f18b7573da56c83549902c",
+  "verification": "Lua 5.3 syntax and module inventory checked; OpenOS validation pending."
+}
