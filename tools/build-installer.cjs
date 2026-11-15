@@ -11,5 +11,8 @@ offline=offline.replace(old,'local root = stage');
 const template=fs.readFileSync(path.join(root,'tools/installer-template.lua'),'utf8');
 const source=template.replace('@@PAYLOADS@@',entries.map(e=>'{name="'+e.name+'", bytes='+e.bytes+', checksum='+e.adler+'}').join(',\n  ')).replace('@@INSTALL@@',offline);
 lua.parse(source,{luaVersion:'5.3'});
+if (source.includes('"/tmp/ocgui-install"') || !source.includes('"/home/.ocgui-install"')) {
+  throw Error('Payload staging must not use the 64 KiB OpenComputers tmpfs');
+}
 fs.writeFileSync(path.join(root,'installer.lua'),source);
 console.log('Generated installer.lua: Coast1n/OpenOS-GUI; payload sizes and Adler-32 checked before installation.');
